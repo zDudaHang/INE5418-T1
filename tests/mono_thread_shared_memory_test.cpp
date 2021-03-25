@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <assert.h>
-#include "../shared_memory.h"
+#include "../libs/shared_memory.h"
 
 // MONO-THREAD SHARED MEMORY LIB TEST
 int main() {

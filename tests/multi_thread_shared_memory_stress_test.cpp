@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <assert.h>
-#include "../shared_memory.h"
+#include "../libs/shared_memory.h"
 
 // MULTI-THREAD SHARED MEMORY LIB TEST
 #define NUM_THREADS 100
