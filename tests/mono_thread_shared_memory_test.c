@@ -4,7 +4,7 @@
 
 // MONO-THREAD SHARED MEMORY LIB TEST
 int main() {
-    shared_memory_element_t shared_memory_element memory[10];
+    shared_memory_element_t memory[10];
 
     init_memory(memory, 10);
 
