@@ -24,24 +24,24 @@ configs_t read_configs()
 
     f = fopen(FILE_PATH, "r");
 
-    if (f == NULL) {
+    if (f == NULL)
+    {
         perror("Was not possible to open the file");
         exit(1);
     }
 
     fscanf(
-            f, 
-            "memory_size=%d\n"
-            "server_base_ip=%s\n"
-            "server_base_port=%d\n" 
-            "server_range_index=%d\n" 
-            "number_of_servers=%d",
-            &configs.memory_size, 
-            configs.server_base_ip, 
-            &configs.server_base_port, 
-            &configs.server_range_index, 
-            &configs.number_of_servers
-    );
+        f,
+        "memory_size=%d\n"
+        "server_base_ip=%s\n"
+        "server_base_port=%d\n"
+        "server_range_index=%d\n"
+        "number_of_servers=%d",
+        &configs.memory_size,
+        configs.server_base_ip,
+        &configs.server_base_port,
+        &configs.server_range_index,
+        &configs.number_of_servers);
 
     fclose(f);
 

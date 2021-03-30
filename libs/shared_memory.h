@@ -12,7 +12,7 @@ typedef struct shared_memory_element {
 
 int init_memory(shared_memory_element_t * memory, int size) {
     for (int i = 0; i < size; i++) {
-        memory[i].value = '\0';
+        memory[i].value = 'a';
         int result = pthread_rwlock_init(&(memory[i].lock), NULL);
         if (result != 0) {
             perror("Can't init the read write lock");
@@ -22,7 +22,7 @@ int init_memory(shared_memory_element_t * memory, int size) {
     return 0;
 }
 
-char * read(shared_memory_element_t * memory, char * result, int start, int end) {
+char * read_memory(shared_memory_element_t * memory, char * result, int start, int end) {
     int j = 0;
     for (int i = start; i <= end; i++) {
         pthread_rwlock_rdlock(&(memory[i].lock));
@@ -33,7 +33,7 @@ char * read(shared_memory_element_t * memory, char * result, int start, int end)
     return result;
 }
 
-void write(shared_memory_element_t * memory, char value, int index) {
+void write_memory(shared_memory_element_t * memory, char value, int index) {
     pthread_rwlock_wrlock(&(memory[index].lock));
     memory[index].value = value;
     pthread_rwlock_unlock(&(memory[index].lock));
