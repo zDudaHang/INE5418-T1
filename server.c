@@ -2,10 +2,13 @@
 
 #define NUM_CLIENTS 5
 
+
+pthread_t threads[NUM_CLIENTS];
+handler_args_t args[NUM_CLIENTS];
+
 int main()
 {
     configs_t configs = read_configs();
-
     shared_memory_element_t memory[configs.memory_size];
 
     init_memory(memory, configs.memory_size);
@@ -13,7 +16,6 @@ int main()
     int server_sockfd, client_sockfd;
     int server_len, client_len;
     struct sockaddr_in server_address, client_address;
-    char request[REQ_SIZE] = "";
 
     server_sockfd = socket(AF_INET, SOCK_STREAM, 0);
     server_address.sin_family = AF_INET;
@@ -25,15 +27,19 @@ int main()
     listen(server_sockfd, NUM_CLIENTS);
 
     client_len = sizeof(client_address);
-    client_sockfd = accept(server_sockfd, (struct sockaddr *)&client_address, &client_len);
-    printf("Accepted a connection!\n");
+
+    pthread_t thread;
+    handler_args_t args;
     while (1)
     {
-        read(client_sockfd, &request, REQ_SIZE);
-        printf("I read: %s\n", request);
-        char * result = verify_client_request(request[0], request, configs, memory);
-        write(client_sockfd, &result, sizeof(result));
+        client_sockfd = accept(server_sockfd, (struct sockaddr *)&client_address, &client_len);
+
+        args.client_sockfd = client_sockfd;
+        args.configs = configs;
+        args.memory = memory;
+        pthread_create(&thread, NULL, handler, &args);
     }
+
     close(server_sockfd);
     return 0;
 }

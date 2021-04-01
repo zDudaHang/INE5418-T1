@@ -11,10 +11,16 @@
 #include "file.h"
 #include "shared_memory.h"
 
-#define REQ_SIZE 50
+#define REQ_SIZE 100
 #define CLIENT_SEPARATOR " "
 
 // CLIENT-SIDE FUNCTIONS 
+
+enum Client_Status
+{
+    ERROR = 1,
+    QUIT = 2
+};
 
 typedef struct server_range
 {
@@ -32,7 +38,22 @@ typedef struct reader_args
     char server_base_ip[20];
 } reader_args_t;
 
+typedef struct writer_args
+{
+    char * string;
+
+    unsigned int start;
+    unsigned int end;
+    unsigned int server_number;
+    unsigned int mem_size;
+    unsigned int server_base_port;
+    char server_base_ip[20];
+} writer_args_t;
+
 server_range_t verify_which_servers(int start, int end, unsigned int memory_size);
+
+int user_read_request(char request[REQ_SIZE], configs_t configs);
+int user_write_request(char request[REQ_SIZE], configs_t configs);
 
 void *reader(void *arg);
 
@@ -53,9 +74,15 @@ int user_read_request(char request[REQ_SIZE], configs_t configs)
 
     unsigned int number_of_readers = range.end - range.start + 1;
 
-    if (range.start > configs.number_of_servers || range.end > configs.number_of_servers)
+    if (range.start > configs.number_of_servers - 1) {
+        printf("[ERROR] You are trying to pick up from a position (%d) that does not exist in memory. Our last position is %d\n", start, configs.memory_size * configs.number_of_servers - 1);
+        return ERROR; // Error
+    }
+
+    if (range.end > configs.number_of_servers - 1)
     {
-        return 1; // Error
+        printf("[ERROR] You're trying to get more characters (%d) than memory have (%d)\n", size, configs.memory_size * configs.number_of_servers);
+        return ERROR; // Error
     }
 
     pthread_t readers[number_of_readers];
@@ -63,18 +90,6 @@ int user_read_request(char request[REQ_SIZE], configs_t configs)
 
     unsigned int start_index = start % mem_size;
     unsigned int end_index = end % mem_size;
-
-    if (range.start == range.end)
-    {
-        args[0].start = start_index;
-        args[0].end = end_index;
-        args[0].server_number = range.start;
-        args[0].server_base_port = configs.server_base_port;
-        args[0].mem_size = mem_size;
-        strcpy(args[0].server_base_ip, configs.server_base_ip);
-        reader(&(args[0]));
-        return 0;
-    }
 
     for (int i = 0; i < number_of_readers; i++)
     {
@@ -98,10 +113,16 @@ int user_read_request(char request[REQ_SIZE], configs_t configs)
         pthread_create(&(readers[i]), NULL, reader, &(args[i]));
     }
 
+    char * result = malloc(sizeof(char) * number_of_readers * mem_size);
+
     for (int i = 0; i < number_of_readers; i++)
     {
-        pthread_join(readers[i], NULL);
+        char * temp;
+        pthread_join(readers[i], (void **)&temp);
+        strcat(result, temp);
     }
+
+    printf("MEMORY[%d:%d]=%s\n", start, end, result);
 
     return 0;
 }
@@ -114,14 +135,78 @@ server_range_t verify_which_servers(int start, int end, unsigned int memory_size
     return range;
 }
 
-int user_write_request(char input[REQ_SIZE], configs_t configs)
+int user_write_request(char request[REQ_SIZE], configs_t configs)
 {
+    // Extract the start, the string and the size
+    strtok(request, CLIENT_SEPARATOR); // w
+    int start = atoi(strtok(NULL, CLIENT_SEPARATOR));
+    char * string = strtok(NULL, CLIENT_SEPARATOR);
+    int size = atoi(strtok(NULL, CLIENT_SEPARATOR));
+    int end = start + size - 1;
+
+    printf("START=%d, STRING=%s, SIZE=%d\n", start, string, size);
+
+    if (size <= 0) {
+        printf("[ERROR] You can't write with size less or equal than 0!\n");
+        return ERROR; // Error
+    }
+
+    unsigned int mem_size = configs.memory_size;
+
+    // TODO Check if the user is not passing a size less or greater than the real string!
+
+    // Verify which servers we need to connect
+    server_range_t range = verify_which_servers(start, end, mem_size);
+
+    printf("Range[start=%d, end=%d]\n", range.start, range.end);
+
+    if (range.start > configs.number_of_servers - 1) {
+        printf("[ERROR] You are trying to write up from a position (%d) that does not exist in memory. Our last position is %d\n", start, configs.memory_size * configs.number_of_servers - 1);
+        return ERROR; // Error
+    }
+
+    if (range.end > configs.number_of_servers - 1)
+    {
+        printf("[ERROR] You're trying to write more characters (%d) than memory have (%d)\n", size, configs.memory_size * configs.number_of_servers);
+        return ERROR; // Error
+    }
+
+    unsigned int number_of_writers = range.end - range.start + 1;
+
+    writer_args_t args[number_of_writers];
+
+    printf("Preparing the strings...\n");
+
+    char c;
+    char * str;
+    int mem_count = start;
+    int thread = 0;
+    for (int i = 0; i < size; i++) {
+        c = string[i];
+        printf("c=%c\n", c);
+        printf("thread=%d\n", thread);
+        if (mem_count == mem_size) {
+            thread++;
+            mem_count = 0;
+            strcat(str, "#");
+        }
+        strncat(str, &c, 1);
+    } 
+
+    printf("STR=%s\n", str);
+
+    printf("Done!\n");
+
+    for (int i = 0; i < number_of_writers; i++) {
+        printf("args[%d]=%s\n", i, args[i].string);
+    }
+
+    return 0;
 }
 
 void *reader(void *arg)
 {
     reader_args_t *args = (reader_args_t *)arg;
-    printf("I'm a reader! I have to read S%d[%d,%d]\n", args->server_number, args->start, args->end);
 
     // Configuring to connect with the server
     int sockfd, len, result;
@@ -139,16 +224,13 @@ void *reader(void *arg)
 
     if (result == -1)
     {
+        // TODO Change the message because the user not should know that's a shared memory
         perror("ERROR WHEN CONNECTING!\n");
         exit(1);
     }
 
     sprintf(read_request, "r#%d#%d", args->start, args->end);
-
-    printf("Trying to write %s on socket...\n", read_request);
     write(sockfd, &read_request, REQ_SIZE);
     read(sockfd, &answer, mem_size);
-    printf("%s\n", answer);
-    printf("Done!\n");
-    return 0;
+    pthread_exit((void *)answer);
 }

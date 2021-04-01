@@ -1,12 +1,6 @@
 #include <stdlib.h>
 #include "client_request.h"
 
-enum Client_Status
-{
-    ERROR,
-    QUIT
-};
-
 void print_commands();
 void print_welcome_message();
 int verify_user_request(char type, char *request, configs_t configs);

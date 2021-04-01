@@ -2,4 +2,4 @@ memory_size=5
 server_base_ip=192.168.0.7
 server_base_port=9734
 server_range_index=0
-number_of_servers=4
+number_of_servers=2

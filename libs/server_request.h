@@ -22,25 +22,49 @@ typedef struct fragmented_client_read_request
     unsigned int end;
 } fragmented_client_read_request_t;
 
-char* client_read_request(char * request, configs_t configs, shared_memory_element_t * memory);
-fragmented_client_read_request_t split_read_request(char * request);
+typedef struct handler_args {
+    int client_sockfd;
+    shared_memory_element_t * memory;
+    configs_t configs;
+} handler_args_t;
 
-char* client_read_request(char * request, configs_t configs, shared_memory_element_t * memory) {
-    char result[configs.memory_size];
+void verify_client_request(char * result, char type, char *request, configs_t configs, shared_memory_element_t * memory);
+void client_read_request(char * result, char * request, configs_t configs, shared_memory_element_t * memory);
+fragmented_client_read_request_t split_read_request(char * request);
+void * handler(void * arg);
+
+void verify_client_request(char * result, char type, char *request, configs_t configs, shared_memory_element_t * memory)
+{
+    switch (type)
+    {
+    case 'r':
+        client_read_request(result, request, configs, memory);
+        break;
+    case 'w':
+        break;
+    default:
+        break;
+    }
+}
+
+void client_read_request(char * result, char * request, configs_t configs, shared_memory_element_t * memory) {
     fragmented_client_read_request_t frag_req = split_read_request(request);
     read_memory(memory, result, frag_req.start, frag_req.end);
-    printf("Readed: %s\n", result);
-    return result;
 }
 
 fragmented_client_read_request_t split_read_request(char * request) {
     fragmented_client_read_request_t frag_req;
-
     strtok(request, SERVER_SEPARATOR); // r
     frag_req.start = atoi(strtok(NULL, SERVER_SEPARATOR));
     frag_req.end = atoi(strtok(NULL, SERVER_SEPARATOR));
-
-    printf("Frag_req[start=%d, end=%d]\n", frag_req.start, frag_req.end);
-
     return frag_req;
+}
+
+void * handler(void * arg) {
+    handler_args_t * args = (handler_args_t *) arg;
+    char request[REQ_SIZE], result[REQ_SIZE] = "";
+    read(args->client_sockfd, &request, REQ_SIZE);
+    verify_client_request(result, request[0], request, args->configs, args->memory);
+    write(args->client_sockfd, &result, sizeof(result));
+    close(args->client_sockfd);
 }
