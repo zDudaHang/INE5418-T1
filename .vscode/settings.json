@@ -5,6 +5,7 @@
         "client.h": "c",
         "client_request.h": "c",
         "server_request.h": "c",
-        "string.h": "c"
+        "string.h": "c",
+        "logger.h": "c"
     }
 }

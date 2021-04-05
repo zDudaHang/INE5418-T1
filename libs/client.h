@@ -1,4 +1,3 @@
-#include <stdlib.h>
 #include "client_request.h"
 
 void print_commands();

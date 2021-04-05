@@ -11,8 +11,8 @@
 
 #include "file.h"
 #include "shared_memory.h"
+#include "common.h"
 #define SERVER_SEPARATOR "#"
-#define REQ_SIZE 50
 
 // SERVER-SIDE FUNCTIONS 
 
@@ -22,6 +22,13 @@ typedef struct fragmented_client_read_request
     unsigned int end;
 } fragmented_client_read_request_t;
 
+typedef struct fragmented_client_write_request
+{
+    unsigned int start;
+    unsigned int end;
+    char * string;
+} fragmented_client_write_request_t;
+
 typedef struct handler_args {
     int client_sockfd;
     shared_memory_element_t * memory;
@@ -30,7 +37,11 @@ typedef struct handler_args {
 
 void verify_client_request(char * result, char type, char *request, configs_t configs, shared_memory_element_t * memory);
 void client_read_request(char * result, char * request, configs_t configs, shared_memory_element_t * memory);
+void client_write_request(char * result, char * request, configs_t configs, shared_memory_element_t * memory);
+
 fragmented_client_read_request_t split_read_request(char * request);
+fragmented_client_write_request_t split_write_request(char * request);
+
 void * handler(void * arg);
 
 void verify_client_request(char * result, char type, char *request, configs_t configs, shared_memory_element_t * memory)
@@ -41,6 +52,7 @@ void verify_client_request(char * result, char type, char *request, configs_t co
         client_read_request(result, request, configs, memory);
         break;
     case 'w':
+        client_write_request(result, request, configs, memory);
         break;
     default:
         break;
@@ -48,16 +60,36 @@ void verify_client_request(char * result, char type, char *request, configs_t co
 }
 
 void client_read_request(char * result, char * request, configs_t configs, shared_memory_element_t * memory) {
-    fragmented_client_read_request_t frag_req = split_read_request(request);
-    read_memory(memory, result, frag_req.start, frag_req.end);
+    fragmented_client_read_request_t frag = split_read_request(request);
+    read_memory(memory, result, frag.start, frag.end);
+}
+
+void client_write_request(char * result, char * request, configs_t configs, shared_memory_element_t * memory) {
+    fragmented_client_write_request_t frag = split_write_request(request);
+    
+    int i = 0;
+    char c = frag.string[i];
+    while(frag.start <= frag.end) {
+        write_memory(memory, c, frag.start++);
+        c = frag.string[++i];
+    }
+}
+
+fragmented_client_write_request_t split_write_request(char * request) {
+    fragmented_client_write_request_t frag;
+    strtok(request, SERVER_SEPARATOR); // r
+    frag.start = atoi(strtok(NULL, SERVER_SEPARATOR));
+    frag.end = atoi(strtok(NULL, SERVER_SEPARATOR));
+    frag.string = strtok(NULL, SERVER_SEPARATOR);
+    return frag;
 }
 
 fragmented_client_read_request_t split_read_request(char * request) {
-    fragmented_client_read_request_t frag_req;
+    fragmented_client_read_request_t frag;
     strtok(request, SERVER_SEPARATOR); // r
-    frag_req.start = atoi(strtok(NULL, SERVER_SEPARATOR));
-    frag_req.end = atoi(strtok(NULL, SERVER_SEPARATOR));
-    return frag_req;
+    frag.start = atoi(strtok(NULL, SERVER_SEPARATOR));
+    frag.end = atoi(strtok(NULL, SERVER_SEPARATOR));
+    return frag;
 }
 
 void * handler(void * arg) {

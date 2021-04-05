@@ -1,11 +1,7 @@
 #include "libs/server.h"
 
-#define NUM_CLIENTS 5
-
-
 pthread_t threads[NUM_CLIENTS];
 handler_args_t args[NUM_CLIENTS];
-
 int main()
 {
     configs_t configs = read_configs();
@@ -27,6 +23,16 @@ int main()
     listen(server_sockfd, NUM_CLIENTS);
 
     client_len = sizeof(client_address);
+
+    pthread_t log;
+    logger_args_t log_args;
+
+    log_args.configs = configs;
+    log_args.server_sockfd = server_sockfd;
+    log_args.memory = memory;
+
+    // Create the logger
+    pthread_create(&log, NULL, logger, &log_args);
 
     pthread_t thread;
     handler_args_t args;
